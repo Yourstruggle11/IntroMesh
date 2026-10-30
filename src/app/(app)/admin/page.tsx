@@ -8,7 +8,7 @@ import { AdminActions, RetryEmail } from "@/components/admin/admin-client";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge, Card } from "@/components/ui/primitives";
 import { aiEnabled } from "@/lib/ai";
-import { aiModel } from "@/lib/ai/gemini";
+import { aiDescribe } from "@/lib/ai/provider";
 import { isAdmin, requireOnboardedUser } from "@/lib/auth";
 import { CHAINS, addressUrl, formatUnits6 } from "@/lib/crypto/chains";
 import { walletBalances, walletConfigured } from "@/lib/crypto/payments";
@@ -48,7 +48,7 @@ export default async function AdminPage() {
       <PageHeader eyebrow="Admin" title="Control room" description="Integration health, graph operations, wallet and the email outbox." />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Status ok label="Database" detail={usingEmbeddedDb() ? "Embedded PGlite (local dev)" : "Supabase Postgres"} />
-        <Status ok={aiEnabled()} label="AI (Gemini)" detail={aiEnabled() ? aiModel() : "GEMINI_API_KEY missing — using fallbacks"} />
+        <Status ok={aiEnabled()} label="AI providers" detail={aiEnabled() ? aiDescribe() : "No AI keys — using built-in fallbacks"} />
         <Status ok={smtpConfigured()} label="Email (SMTP)" detail={smtpConfigured() ? process.env.SMTP_HOST : "Not configured — emails are logged"} />
         <Status ok={tgConfigured()} label="TigerGraph" detail={tgConfigured() ? `graph ${tgGraph()}` : "Not configured — Postgres fallback"} />
         <Status ok={walletConfigured()} label="Crypto wallet" detail={wallet?.address ?? "WALLET_PRIVATE_KEY missing"} />

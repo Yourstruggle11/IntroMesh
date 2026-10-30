@@ -31,6 +31,7 @@
     "motion": "^14.8.0",
     "next": "16.4.3",
     "nodemailer": "^10.3.1",
+    "openai": "^7.45.1",
     "papaparse": "^5.7.0",
     "postgres": "^3.4.9",
     "qrcode": "^1.5.4",

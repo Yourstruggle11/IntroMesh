@@ -1,9 +1,10 @@
 import "server-only";
-import { GoogleGenAI, type Schema } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
+import { toGemini, type JsonSchema } from "./schema";
 
 let client: GoogleGenAI | null = null;
 
-export function aiEnabled() {
+export function geminiEnabled() {
   return Boolean(process.env.GEMINI_API_KEY);
 }
 
@@ -13,76 +14,33 @@ function getClient() {
 }
 
 /** Quality model for writing; fast model for short structured tasks. */
-export function aiModel(fast = false) {
+export function geminiModel(fast = false) {
   if (fast) return process.env.GEMINI_FAST_MODEL || "gemini-3.5-flash-lite";
   return process.env.GEMINI_MODEL || "gemini-3.5-flash";
 }
 
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error(`AI timeout after ${ms}ms`)), ms);
-    p.then(
-      (v) => {
-        clearTimeout(t);
-        resolve(v);
-      },
-      (e) => {
-        clearTimeout(t);
-        reject(e);
-      },
-    );
+type Common = { system: string; prompt: string; temperature: number; timeoutMs: number; fast?: boolean };
+
+export async function geminiJson<T>(opts: Common & { schema: JsonSchema }): Promise<T | null> {
+  const res = await getClient().models.generateContent({
+    model: geminiModel(opts.fast),
+    contents: opts.prompt,
+    config: {
+      systemInstruction: opts.system,
+      temperature: opts.temperature,
+      responseMimeType: "application/json",
+      responseSchema: toGemini(opts.schema),
+      abortSignal: AbortSignal.timeout(opts.timeoutMs),
+    },
   });
+  return res.text ? (JSON.parse(res.text) as T) : null;
 }
 
-type GenOpts = {
-  system: string;
-  prompt: string;
-  temperature?: number;
-  timeoutMs?: number;
-  /** Use the low-latency model. */
-  fast?: boolean;
-};
-
-/** Structured JSON generation. Returns null on any failure so callers can fall back. */
-export async function generateJson<T>(opts: GenOpts & { schema: Schema }): Promise<T | null> {
-  if (!aiEnabled()) return null;
-  try {
-    const res = await withTimeout(
-      getClient().models.generateContent({
-        model: aiModel(opts.fast),
-        contents: opts.prompt,
-        config: {
-          systemInstruction: opts.system,
-          temperature: opts.temperature ?? 0.4,
-          responseMimeType: "application/json",
-          responseSchema: opts.schema,
-        },
-      }),
-      opts.timeoutMs ?? 15000,
-    );
-    const text = res.text;
-    if (!text) return null;
-    return JSON.parse(text) as T;
-  } catch (err) {
-    console.warn("[ai] generateJson failed:", (err as Error).message);
-    return null;
-  }
-}
-
-export async function generateText(opts: GenOpts): Promise<string | null> {
-  if (!aiEnabled()) return null;
-  try {
-    const res = await withTimeout(
-      getClient().models.generateContent({
-        model: aiModel(opts.fast),
-        contents: opts.prompt,
-        config: { systemInstruction: opts.system, temperature: opts.temperature ?? 0.6 },
-      }),
-      opts.timeoutMs ?? 15000,
-    );
-    return res.text?.trim() || null;
-  } catch (err) {
-    console.warn("[ai] generateText failed:", (err as Error).message);
-    return null;
-  }
+export async function geminiText(opts: Common): Promise<string | null> {
+  const res = await getClient().models.generateContent({
+    model: geminiModel(opts.fast),
+    contents: opts.prompt,
+    config: { systemInstruction: opts.system, temperature: opts.temperature, abortSignal: AbortSignal.timeout(opts.timeoutMs) },
+  });
+  return res.text?.trim() || null;
 }

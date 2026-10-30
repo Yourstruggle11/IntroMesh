@@ -1,0 +1,35 @@
+name: Socket supply-chain scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  socket:
+    name: Scan dependencies with Socket
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # `socket ci` = `socket scan create --report`: uploads package.json + package-lock.json,
+      # waits for the report and exits non-zero if any alert hits an "error" policy.
+      - name: Socket scan
+        env:
+          SOCKET_CLI_API_TOKEN: ${{ secrets.SOCKET_CLI_API_TOKEN }}
+        run: |
+          if [ -z "$SOCKET_CLI_API_TOKEN" ]; then
+            echo "::warning::SOCKET_CLI_API_TOKEN secret is not set — skipping the Socket scan."
+            exit 0
+          fi
+          BRANCH="${{ github.head_ref || github.ref_name }}"
+          EXTRA=""
+          if [ "${{ github.event_name }}" = "push" ] && [ "$BRANCH" = "main" ]; then EXTRA="--default-branch"; fi
+          npx -y socket@latest ci --repo="${{ github.event.repository.name }}" --branch="$BRANCH" $EXTRA .

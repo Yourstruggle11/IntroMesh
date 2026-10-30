@@ -22,7 +22,8 @@ IntroMesh finds the warmest path to the person you want to meet, drafts the intr
 | DB | Postgres (Supabase) via Drizzle ORM. Local dev falls back to embedded **PGlite** (`./.pglite`). |
 | Auth | Email + password (bcrypt). Session tokens are stored hashed, in httpOnly cookies. |
 | Graph | TigerGraph Savanna (REST++ / GSQL), with an in-memory BFS over Postgres as fallback |
-| AI | Google Gemini (`@google/genai`). Every AI feature has a deterministic fallback. |
+| AI | Provider chain: **AI Grants** OpenAI key (`gpt-5-nano`), then **Google Gemini**, then deterministic built-in fallbacks. Schemas are written once and converted per provider. |
+| Supply chain | **Socket**: the GitHub App flags risky dependencies on PRs, and `.github/workflows/socket.yml` runs `socket ci` on every push/PR |
 | Email | Any SMTP server (e.g. Gmail + app password) through nodemailer. Every email is recorded in an outbox with its delivery status. |
 | Crypto | viem: USDC orders with a unique amount, verified by reading on-chain `Transfer` logs. Payouts and refunds come from the server wallet. |
 | Billing | Dodo Payments subscriptions (signed Standard Webhooks), or a 30-day plan prepaid in USDC |
@@ -46,7 +47,8 @@ Demo members from the seed log in with `<firstname>@demo.intromesh.local` / `dem
 See `.env.example`. In short:
 
 - **`DATABASE_URL`**: the Supabase *transaction pooler* URI (port 6543). **`DATABASE_URL_DIRECT`**: the *direct* URI (5432), used for migrations.
-- **`GEMINI_API_KEY`**: from aistudio.google.com. **`GEMINI_MODEL`** (default `gemini-3.5-flash`) does the writing; **`GEMINI_FAST_MODEL`** (default `gemini-3.5-flash-lite`) handles quick structured tasks.
+- **`OPENAI_API_KEY`**: AI Grants key (primary AI). Optional: `OPENAI_MODEL` (default `gpt-5-nano`), `OPENAI_BASE_URL`, `AI_PROVIDER_ORDER` (default `openai,gemini`).
+- **`GEMINI_API_KEY`**: from aistudio.google.com (fallback AI). **`GEMINI_MODEL`** (default `gemini-3.5-flash`) does the writing; **`GEMINI_FAST_MODEL`** (default `gemini-3.5-flash-lite`) handles quick structured tasks.
 - **`SMTP_*` / `EMAIL_FROM`**: e.g. `smtp.gmail.com`, `465`, your Gmail address, and a 16-character app password.
 - **`TG_HOST`, `TG_SECRET`, `TG_USERNAME`, `TG_PASSWORD`, `TG_GRAPH`**: TigerGraph Savanna.
 - **`CRYPTO_NETWORK`**: `testnet` (default: Base Sepolia / Polygon Amoy / Arbitrum Sepolia with free faucet USDC, no real money) or `mainnet` (real USDC, works with Cake Wallet). Every order and bounty records its network, and payouts never cross networks.
@@ -62,6 +64,12 @@ See `.env.example`. In short:
 3. **TigerGraph**: make sure the Savanna workspace is running with **Auto Start** enabled (otherwise API calls can't wake it after auto-suspend, and the app falls back to Postgres). Then open `/admin` and click **Set up TigerGraph**. This creates the schema, installs `warm_paths`, and syncs. Or run `npm run graph:setup` then `npm run graph:sync`.
 4. **Dodo**: set `DODO_API_KEY`, run `npm run dodo:setup` (creates the Pro and Team products), and add the product IDs to Vercel. Then in the Dodo dashboard add the webhook `https://<app>/api/webhooks/dodo` and copy its secret into `DODO_WEBHOOK_SECRET`.
 5. **Wallet**: send a little gas to the address printed by `npm run wallet:new`. On testnet that's free Base Sepolia ETH from a faucet; on mainnet, ~$1 of ETH on Base covers 100+ payouts.
+
+## Socket (supply-chain security)
+
+1. Sign in at socket.dev with GitHub and install the **Socket GitHub App** on this repo. It comments on PRs that add risky dependencies.
+2. In Socket, create an API token with `full-scans:create`, `full-scans:list` and `security-policy:read`.
+3. Add it as a GitHub Actions secret named **`SOCKET_CLI_API_TOKEN`**. The `Socket supply-chain scan` workflow then runs `socket ci` on every push and PR, failing on "error"-level policy alerts. Without the secret it skips with a warning.
 
 ## Security notes
 

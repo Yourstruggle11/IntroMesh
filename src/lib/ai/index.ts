@@ -1,11 +1,11 @@
 import "server-only";
 import { createHash } from "crypto";
 import { eq } from "drizzle-orm";
-import { Type } from "@google/genai";
 import { db } from "@/db";
 import { aiCache } from "@/db/schema";
 import { firstName, uniqTags } from "@/lib/utils";
-import { aiEnabled, generateJson, generateText } from "./gemini";
+import { aiEnabled, generateJson, generateText } from "./provider";
+import { S } from "./schema";
 
 export { aiEnabled };
 
@@ -53,19 +53,8 @@ Rules:
 - tags: 3-8 lowercase topic tags (e.g. "defi", "ai agents", "payments").
 - name: the person's name if stated, else the provided fallback.`,
     prompt: `Fallback name: ${fallbackName}\n<data>\n${about.slice(0, 2000)}\n</data>`,
-    schema: {
-      type: Type.OBJECT,
-      properties: {
-        name: { type: Type.STRING },
-        headline: { type: Type.STRING },
-        role: { type: Type.STRING },
-        company: { type: Type.STRING },
-        lookingFor: { type: Type.ARRAY, items: { type: Type.STRING } },
-        canIntroduce: { type: Type.ARRAY, items: { type: Type.STRING } },
-        tags: { type: Type.ARRAY, items: { type: Type.STRING } },
-      },
-      required: ["name", "headline", "role", "company", "lookingFor", "canIntroduce", "tags"],
-    },
+    name: "profile",
+    schema: S.obj({ name: S.str(), headline: S.str(), role: S.str(), company: S.str(), lookingFor: S.arr(S.str()), canIntroduce: S.arr(S.str()), tags: S.arr(S.str()) }),
     temperature: 0.3,
   });
   if (ai) {
@@ -146,7 +135,8 @@ export async function expandQuery(query: string): Promise<string[]> {
       const r = await generateJson<{ keywords: string[] }>({
         system: `You expand a networking search query into 6-12 short lowercase keywords (roles, synonyms, companies, sectors) used to match people profiles. ${DATA_RULE}`,
         prompt: `<data>${q}</data>`,
-        schema: { type: Type.OBJECT, properties: { keywords: { type: Type.ARRAY, items: { type: Type.STRING } } }, required: ["keywords"] },
+        name: "query_keywords",
+        schema: S.obj({ keywords: S.arr(S.str()) }),
         temperature: 0.2,
         timeoutMs: 6000,
         fast: true,
@@ -181,16 +171,8 @@ export async function explainPaths(input: PathExplainInput): Promise<Record<stri
       const r = await generateJson<{ items: { key: string; reason: string }[] }>({
         system: `You are IntroMesh's relationship-intelligence engine. For each candidate warm path, write ONE sentence (max 30 words) explaining why this path is a good route for the requester, grounded ONLY in the provided signals and path. Be specific, never invent facts. ${DATA_RULE}`,
         prompt: `<data>${JSON.stringify(input)}</data>`,
-        schema: {
-          type: Type.OBJECT,
-          properties: {
-            items: {
-              type: Type.ARRAY,
-              items: { type: Type.OBJECT, properties: { key: { type: Type.STRING }, reason: { type: Type.STRING } }, required: ["key", "reason"] },
-            },
-          },
-          required: ["items"],
-        },
+        name: "path_reasons",
+        schema: S.obj({ items: S.arr(S.obj({ key: S.str(), reason: S.str() })) }),
         temperature: 0.3,
         timeoutMs: 9000,
         fast: true,
@@ -207,6 +189,7 @@ export async function explainPaths(input: PathExplainInput): Promise<Record<stri
 
 export async function polishReason(reason: string, ctx: { requester: string; target: string }): Promise<string> {
   const out = await generateText({
+    name: "polish_reason",
     system: `Rewrite a warm-intro request reason so it is clear, specific and polite, in first person, 2-3 sentences, max 70 words. Keep every fact; add none. Return only the rewritten text. ${DATA_RULE}`,
     prompt: `Requester: ${ctx.requester}\nTarget: ${ctx.target}\n<data>${reason.slice(0, 1200)}</data>`,
     temperature: 0.4,
@@ -239,6 +222,7 @@ export async function draftIntro(input: DraftInput): Promise<{ subject: string; 
   ].join("\n");
 
   const body = await generateText({
+    name: "intro_draft",
     system: `You write warm double-sided introduction emails on behalf of the CONNECTOR, in first person as the connector.
 Rules:
 - Address the target by first name. Introduce the requester and why they should talk, using ONLY the facts provided.
@@ -274,11 +258,8 @@ export async function recommendationBlurbs(
       const r = await generateJson<{ items: { key: string; reason: string }[] }>({
         system: `For each candidate, write one short line (max 18 words) on why the user should meet them, grounded only in the signals. ${DATA_RULE}`,
         prompt: `<data>${JSON.stringify({ me, candidates })}</data>`,
-        schema: {
-          type: Type.OBJECT,
-          properties: { items: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { key: { type: Type.STRING }, reason: { type: Type.STRING } }, required: ["key", "reason"] } } },
-          required: ["items"],
-        },
+        name: "recommendation_reasons",
+        schema: S.obj({ items: S.arr(S.obj({ key: S.str(), reason: S.str() })) }),
         temperature: 0.4,
         timeoutMs: 8000,
         fast: true,
