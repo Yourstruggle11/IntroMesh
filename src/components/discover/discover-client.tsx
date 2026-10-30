@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, ChevronDown, Coins, Cpu, Database, Lock, Search, Sparkles, Users, Wand2, Zap } from "lucide-react";
 import { toast } from "sonner";
@@ -18,7 +18,7 @@ const SUGGESTIONS = ["seed investor", "Solana devrel", "payments founder", "AI a
 
 type ChainOpt = { key: string; label: string };
 
-export function DiscoverClient({ initialQuery, data, chains, defaultChain, maxBountyUsd, bountiesReady }: { initialQuery: string; data: DiscoverResponse | null; chains: ChainOpt[]; defaultChain: string; maxBountyUsd: number; bountiesReady: boolean }) {
+export function DiscoverClient({ initialQuery, data, viewerId, chains, defaultChain, maxBountyUsd, bountiesReady }: { initialQuery: string; data: DiscoverResponse | null; viewerId: string; chains: ChainOpt[]; defaultChain: string; maxBountyUsd: number; bountiesReady: boolean }) {
   const router = useRouter();
   const [q, setQ] = useState(initialQuery);
   const [searching, startSearch] = useTransition();
@@ -151,6 +151,7 @@ export function DiscoverClient({ initialQuery, data, chains, defaultChain, maxBo
           key={request.result.key + request.path.connector.id}
           result={request.result}
           path={request.path}
+          viewerId={viewerId}
           onClose={() => setRequest(null)}
           chains={chains}
           defaultChain={defaultChain}
@@ -257,7 +258,7 @@ function ResultCard({ r, reason, onRequest }: { r: DiscoverResult; reason?: stri
   );
 }
 
-function RequestDialog({ result, path, onClose, chains, defaultChain, maxBountyUsd, bountiesReady }: { result: DiscoverResult; path: DiscoverPath; onClose: () => void; chains: ChainOpt[]; defaultChain: string; maxBountyUsd: number; bountiesReady: boolean }) {
+function RequestDialog({ result, path, viewerId, onClose, chains, defaultChain, maxBountyUsd, bountiesReady }: { result: DiscoverResult; path: DiscoverPath; viewerId: string; onClose: () => void; chains: ChainOpt[]; defaultChain: string; maxBountyUsd: number; bountiesReady: boolean }) {
   const router = useRouter();
   const [reason, setReason] = useState("");
   const [bountyOn, setBountyOn] = useState(false);
@@ -269,18 +270,24 @@ function RequestDialog({ result, path, onClose, chains, defaultChain, maxBountyU
   const presets = useMemo(() => [1, 5, 10, 25, 50, 100, 200].filter((p) => p <= maxBountyUsd), [maxBountyUsd]);
   const onDictate = useCallback((t: string) => setReason((r) => (r ? `${r.trimEnd()} ${t}` : t)), []);
 
-  // Dictated text is long and easy to lose. Keep a per-request draft in the browser.
-  const draftKey = `intromesh:draft:${result.target.id}:${path.connector.id}`;
+  // Dictated text is long and easy to lose. Keep a per-request draft in the browser,
+  // scoped to the viewer so a shared browser never restores someone else's draft.
+  const draftKey = `intromesh:draft:${viewerId}:${result.target.id}:${path.connector.id}`;
+  const restoredFor = useRef<string | null>(null);
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(draftKey);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (saved) setReason(saved);
-    } catch {
-      /* storage unavailable (private mode) */
+    // First pass for a key restores; every later pass persists. Restoring and persisting in
+    // one effect avoids a window where the empty initial value deletes the stored draft.
+    if (restoredFor.current !== draftKey) {
+      restoredFor.current = draftKey;
+      try {
+        const saved = localStorage.getItem(draftKey);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (saved) setReason(saved);
+      } catch {
+        /* storage unavailable (private mode) */
+      }
+      return;
     }
-  }, [draftKey]);
-  useEffect(() => {
     try {
       if (reason) localStorage.setItem(draftKey, reason);
       else localStorage.removeItem(draftKey);

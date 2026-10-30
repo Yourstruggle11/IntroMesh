@@ -19,6 +19,7 @@ export default async function DiscoverPage({ searchParams }: { searchParams: Pro
       <DiscoverClient
         initialQuery={q}
         data={data}
+        viewerId={user.id}
         chains={enabledChains().map((k) => ({ key: k, label: CHAINS[k].label }))}
         defaultChain={defaultChain()}
         maxBountyUsd={effectivePlan(user).maxBountyUsd}

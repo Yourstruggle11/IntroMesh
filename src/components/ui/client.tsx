@@ -119,14 +119,19 @@ type SpeechRec = {
 };
 
 export function DictationButton({ onText, className }: { onText: (text: string) => void; className?: string }) {
-  const [supported, setSupported] = useState(false);
+  // "unknown" until the effect runs: the server and the first render must commit to neither branch.
+  const [speech, setSpeech] = useState<"unknown" | "yes" | "no">("unknown");
   const [listening, setListening] = useState(false);
   const recRef = useRef<SpeechRec | null>(null);
 
   useEffect(() => {
     const w = window as unknown as { SpeechRecognition?: new () => SpeechRec; webkitSpeechRecognition?: new () => SpeechRec };
     const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!Ctor) return;
+    if (!Ctor) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSpeech("no");
+      return;
+    }
     const rec = new Ctor();
     rec.lang = "en-US";
     rec.continuous = true;
@@ -142,13 +147,13 @@ export function DictationButton({ onText, className }: { onText: (text: string) 
       if (e.error !== "aborted" && e.error !== "no-speech") toast.error("Microphone unavailable — try Wispr Flow or type instead.");
     };
     recRef.current = rec;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSupported(true);
+    setSpeech("yes");
     return () => rec.stop();
   }, [onText]);
 
+  if (speech === "unknown") return null;
   // No Web Speech API (Safari, Firefox): Wispr Flow still dictates into the focused field.
-  if (!supported)
+  if (speech === "no")
     return (
       <span
         title="Wispr Flow dictates into any focused field, in any app"
