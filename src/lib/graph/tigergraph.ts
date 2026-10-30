@@ -61,6 +61,7 @@ async function getToken(): Promise<string> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ secret, graph: tgGraph(), lifetime: "86400" }),
+    timeoutMs: 6000,
   });
   let token = (r.json as { token?: string; results?: { token?: string } } | null)?.token ?? (r.json as { results?: { token?: string } } | null)?.results?.token;
   if (!token) {
@@ -69,6 +70,7 @@ async function getToken(): Promise<string> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ secret, lifetime: "86400" }),
+      timeoutMs: 6000,
     });
     token = (r.json as { token?: string; results?: { token?: string } } | null)?.token ?? (r.json as { results?: { token?: string } } | null)?.results?.token;
   }
@@ -98,7 +100,7 @@ export async function gsql(statements: string, timeoutMs = 120_000) {
   return r.text;
 }
 
-async function restpp(path: string, init: RequestInit = {}) {
+async function restpp(path: string, init: RequestInit & { timeoutMs?: number } = {}) {
   const token = await getToken();
   const r = await fetchJson(`${host()}/restpp${path}`, {
     ...init,
@@ -150,7 +152,7 @@ INSTALL QUERY warm_paths
 type TgVertexOut = { v_id: string; attributes: { parents?: string[]; depth?: number } };
 
 export async function tgReachable(src: NodeId, maxHops: number): Promise<Reach> {
-  const body = await restpp(`/query/${encodeURIComponent(tgGraph())}/warm_paths?src=${encodeURIComponent(src)}&max_hops=${maxHops}`, { method: "GET" });
+  const body = await restpp(`/query/${encodeURIComponent(tgGraph())}/warm_paths?src=${encodeURIComponent(src)}&max_hops=${maxHops}`, { method: "GET", timeoutMs: 4000 });
   const results = (body?.results ?? []) as { Reached?: TgVertexOut[] }[];
   const reached = results.find((r) => r.Reached)?.Reached ?? [];
   const reach: Reach = new Map([[src, { depth: 0, parents: [] }]]);

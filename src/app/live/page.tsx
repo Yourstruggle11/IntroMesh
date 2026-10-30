@@ -2,14 +2,15 @@ import type { Metadata } from "next";
 import QRCode from "qrcode";
 import { Logo } from "@/components/brand/logo";
 import { LiveBoard } from "@/components/mesh/live-board";
-import { liveStats } from "@/lib/stats";
+import { EMPTY_LIVE_STATS, liveStats, withDeadline } from "@/lib/stats";
 import { absoluteUrl } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Live mesh · Hacker House Goa" };
 export const dynamic = "force-dynamic";
 
 export default async function LivePage() {
-  const stats = await liveStats();
+  // Never let the big screen fail to render: if the database is slow, start empty and let polling fill it in.
+  const stats = await withDeadline(liveStats(), 5000).catch(() => EMPTY_LIVE_STATS);
   const joinUrl = absoluteUrl("/signup");
   const joinQrSvg = await QRCode.toString(joinUrl, { type: "svg", margin: 0, color: { dark: "#05080f", light: "#ffffff" } });
   return (

@@ -22,14 +22,19 @@ export type NodeInfo = {
 
 export type ReachResult = { reach: Reach; engine: "tigergraph" | "postgres"; ms: number; fallbackReason?: string };
 
+/** After a TigerGraph failure (e.g. the workspace is asleep), skip it for a minute instead of waiting on every search. */
+const TG_COOLDOWN_MS = 60_000;
+const tgHealth = globalThis as unknown as { __tgFailedAt?: number };
+
 export async function reachable(userId: string, maxHops = 3): Promise<ReachResult> {
   const src = userNode(userId);
   const t0 = performance.now();
-  if (tgConfigured()) {
+  if (tgConfigured() && Date.now() - (tgHealth.__tgFailedAt ?? 0) > TG_COOLDOWN_MS) {
     try {
       const reach = await tgReachable(src, maxHops);
       return { reach, engine: "tigergraph", ms: Math.round(performance.now() - t0) };
     } catch (err) {
+      tgHealth.__tgFailedAt = Date.now();
       console.warn("[graph] TigerGraph query failed, using Postgres fallback:", (err as Error).message);
       const snap = await loadGraph();
       return { reach: bfs(snap.edges, src, maxHops), engine: "postgres", ms: Math.round(performance.now() - t0), fallbackReason: (err as Error).message };

@@ -138,7 +138,7 @@ export async function expandQuery(query: string): Promise<string[]> {
         name: "query_keywords",
         schema: S.obj({ keywords: S.arr(S.str()) }),
         temperature: 0.2,
-        timeoutMs: 6000,
+        timeoutMs: 3500,
         fast: true,
       });
       return r ? uniqTags([...heuristic, ...r.keywords], 20) : null;
@@ -209,11 +209,14 @@ export type DraftInput = {
 
 export async function draftIntro(input: DraftInput): Promise<{ subject: string; body: string }> {
   const connectorFirst = firstName(input.connector.name);
-  const subject = `Intro: ${firstName(input.requester.name)} <> ${firstName(input.target.name)}`;
+  const requesterFirst = firstName(input.requester.name);
+  const targetFirst = firstName(input.target.name);
+  const subject = `Intro: ${requesterFirst} <> ${targetFirst}`;
+  const about = [input.requester.role, input.requester.company].filter(Boolean).join(" at ");
   const fallbackBody = [
-    `Hi ${firstName(input.target.name)},`,
+    `Hi ${targetFirst},`,
     "",
-    `I'd love to introduce you to ${input.requester.name}${input.requester.role || input.requester.company ? ` (${[input.requester.role, input.requester.company].filter(Boolean).join(" at ")})` : ""}. ${input.reason.trim()}`,
+    `I'd love to introduce you to ${input.requester.name}${about ? ` (${about})` : ""}. In ${requesterFirst}'s words: "${input.reason.trim()}"`,
     "",
     `I thought you two should talk — I'll let you take it from here.`,
     "",
@@ -221,27 +224,70 @@ export async function draftIntro(input: DraftInput): Promise<{ subject: string; 
     connectorFirst,
   ].join("\n");
 
-  const body = await generateText({
-    name: "intro_draft",
-    system: `You write warm double-sided introduction emails on behalf of the CONNECTOR, in first person as the connector.
+  // The reason arrives in the requester's own voice ("I'm building…"); models tend to copy that voice,
+  // so the roles are spelled out and the result is checked before anyone sees it.
+  const system = `You write warm double-sided introduction emails. ${connectorFirst} (the CONNECTOR) writes and signs the email and knows both people.
 Rules:
-- Address the target by first name. Introduce the requester and why they should talk, using ONLY the facts provided.
+- Write in first person as ${connectorFirst}: "I" always means ${connectorFirst}.
+- Address ${targetFirst} (the TARGET) by first name.
+- Refer to ${requesterFirst} (the REQUESTER) in the third person, e.g. "${requesterFirst} is building…". Never write as ${requesterFirst}: no "I'm ${requesterFirst}", no "my name is ${requesterFirst}".
+- The requester's reason is quoted in their own words; restate it in the third person. Use ONLY the facts provided.
 - 70-140 words, warm and concise, plain text, short paragraphs, no markdown, no subject line, no placeholders.
 - End with "Best," on its own line followed by exactly "${connectorFirst}". Never use any other sign-off name.
-${DATA_RULE}`,
-    prompt: `<data>${JSON.stringify(input)}</data>`,
-    temperature: 0.6,
-    timeoutMs: 15000,
-  });
-  if (!body) return { subject, body: fallbackBody };
-  return { subject, body: enforceSignature(body, connectorFirst) };
+${DATA_RULE}`;
+  const prompt = `<data>${JSON.stringify({
+    connector_writing_this_email: input.connector,
+    requester_being_introduced: input.requester,
+    target_receiving_this_email: input.target,
+    requester_reason_in_their_own_words: input.reason,
+  })}</data>`;
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const body = await generateText({
+      name: "intro_draft",
+      system: attempt === 0 ? system : `${system}\nYour previous draft spoke as ${requesterFirst}. Write strictly as ${connectorFirst}, about ${requesterFirst}.`,
+      prompt,
+      temperature: 0.6,
+      timeoutMs: attempt === 0 ? 12000 : 9000,
+    });
+    if (!body) break;
+    const draft = enforceSignature(body, connectorFirst);
+    if (!speaksAsRequester(draft, requesterFirst)) return { subject, body: draft };
+    console.warn("[ai] intro_draft was written in the requester's voice; retrying");
+  }
+  return { subject, body: fallbackBody };
 }
 
+/** "I'm Tess…" in a draft signed by Ravi means the model wrote as the requester. */
+function speaksAsRequester(body: string, requesterFirst: string) {
+  const name = requesterFirst.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b(i['’]m|i am|my name is)\\s+${name}\\b`, "i").test(body);
+}
+
+const SIGN_OFF = /^(best|best wishes|best regards|kind regards|warm regards|warmly|regards|cheers|thanks|thank you|many thanks|sincerely|all the best)[,.!]?$/i;
+
+/** Drop whatever sign-off the model wrote (and any name or title lines under it, even repeated), then sign as the connector. */
 function enforceSignature(body: string, connectorFirst: string) {
-  let b = body.replace(/\r/g, "").trim();
-  // Strip any trailing sign-off block the model may have invented, then append the correct one.
-  b = b.replace(/\n+(best|cheers|regards|thanks|warmly|best regards|kind regards)[,!]?\s*\n+[^\n]{1,40}\s*$/i, "");
-  return `${b}\n\nBest,\n${connectorFirst}`;
+  const lines = body.replace(/\r/g, "").trim().split("\n");
+  const trimEnd = () => {
+    while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+  };
+  for (;;) {
+    let cut = -1;
+    for (let i = lines.length - 1; i >= Math.max(0, lines.length - 8); i--) {
+      if (SIGN_OFF.test(lines[i].trim())) {
+        cut = i;
+        break;
+      }
+    }
+    if (cut < 0) break;
+    lines.length = cut;
+    trimEnd();
+  }
+  // A bare name left on the last line ("…\nRavi") would sit above our own sign-off.
+  if (lines.length && lines[lines.length - 1].trim().toLowerCase() === connectorFirst.toLowerCase()) lines.pop();
+  trimEnd();
+  return `${lines.join("\n").trim()}\n\nBest,\n${connectorFirst}`;
 }
 
 /* ───────────────────────── Recommendations ───────────────────────── */

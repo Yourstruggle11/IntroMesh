@@ -29,7 +29,7 @@ import { PathViz } from "@/components/mesh/path-viz";
 import { ButtonLink } from "@/components/ui/button";
 import { AnimatedNumber } from "@/components/ui/client";
 import { Badge, Card, SectionTitle, Skeleton } from "@/components/ui/primitives";
-import { liveStats } from "@/lib/stats";
+import { liveTotals, withDeadline } from "@/lib/stats";
 import { formatUnits6 } from "@/lib/crypto/chains";
 import { PLANS, formatUsd } from "@/lib/plans";
 import { cn } from "@/lib/utils";
@@ -362,17 +362,14 @@ export default function LandingPage() {
 }
 
 async function LiveStrip() {
-  let s: Awaited<ReturnType<typeof liveStats>>["totals"] | null = null;
-  try {
-    s = (await liveStats()).totals;
-  } catch {
-    s = null;
-  }
+  // One cached query; if it can't answer quickly, drop the strip rather than leave a skeleton spinning.
+  const s = await withDeadline(liveTotals(), 3000).catch(() => null);
+  if (!s) return null;
   const items = [
-    { label: "Builders in the mesh", value: s?.members ?? 0 },
-    { label: "Trusted connections", value: s?.connections ?? 0 },
-    { label: "Warm intros made", value: s?.introduced ?? 0 },
-    { label: "USDC paid to connectors", value: s ? Number(formatUnits6(s.paidUnits)) : 0, prefix: "$", decimals: 2 },
+    { label: "Builders in the mesh", value: s.members },
+    { label: "Trusted connections", value: s.connections },
+    { label: "Warm intros made", value: s.introduced },
+    { label: "USDC paid to connectors", value: Number(formatUnits6(s.paidUnits)), prefix: "$", decimals: 2 },
   ];
   return (
     <div className="glass grid grid-cols-2 gap-px overflow-hidden rounded-2xl lg:grid-cols-4">

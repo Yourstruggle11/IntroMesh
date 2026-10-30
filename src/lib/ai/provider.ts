@@ -26,17 +26,26 @@ type GenOpts = {
   system: string;
   prompt: string;
   temperature?: number;
-  /** Per-provider timeout. */
+  /** Total time budget across all providers (the first gets most of it, fallbacks get the rest). */
   timeoutMs?: number;
   /** Prefer low-latency models where the provider has a choice. */
   fast?: boolean;
 };
 
 /** Structured JSON from the first provider that succeeds. Returns null if all fail (callers use heuristics). */
+/** Time left for attempt `i` of `count`: earlier providers leave room for the fallbacks. */
+function attemptBudget(deadline: number, i: number, count: number) {
+  const left = deadline - Date.now();
+  return i === count - 1 ? left : Math.round(left * 0.65);
+}
+
 export async function generateJson<T>(opts: GenOpts & { schema: JsonSchema; name: string }): Promise<T | null> {
-  for (const p of providers()) {
+  const list = providers();
+  const deadline = Date.now() + (opts.timeoutMs ?? 15000);
+  for (const [i, p] of list.entries()) {
+    const timeoutMs = attemptBudget(deadline, i, list.length);
+    if (timeoutMs < 400) break;
     try {
-      const timeoutMs = opts.timeoutMs ?? 15000;
       const r =
         p === "openai"
           ? await openaiJson<T>({ system: opts.system, prompt: opts.prompt, schema: opts.schema, name: opts.name, timeoutMs })
@@ -50,9 +59,12 @@ export async function generateJson<T>(opts: GenOpts & { schema: JsonSchema; name
 }
 
 export async function generateText(opts: GenOpts & { name: string }): Promise<string | null> {
-  for (const p of providers()) {
+  const list = providers();
+  const deadline = Date.now() + (opts.timeoutMs ?? 15000);
+  for (const [i, p] of list.entries()) {
+    const timeoutMs = attemptBudget(deadline, i, list.length);
+    if (timeoutMs < 400) break;
     try {
-      const timeoutMs = opts.timeoutMs ?? 15000;
       const r =
         p === "openai"
           ? await openaiText({ system: opts.system, prompt: opts.prompt, timeoutMs })
