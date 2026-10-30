@@ -147,7 +147,19 @@ export function DictationButton({ onText, className }: { onText: (text: string) 
     return () => rec.stop();
   }, [onText]);
 
-  if (!supported) return null;
+  // No Web Speech API (Safari, Firefox): Wispr Flow still dictates into the focused field.
+  if (!supported)
+    return (
+      <span
+        title="Wispr Flow dictates into any focused field, in any app"
+        className={cn(
+          "inline-flex h-9 items-center gap-1.5 rounded-xl border border-line bg-white/[0.04] px-3 text-xs font-medium text-subtle",
+          className,
+        )}
+      >
+        <Mic className="h-3.5 w-3.5" /> Works with Wispr Flow
+      </span>
+    );
   return (
     <button
       type="button"

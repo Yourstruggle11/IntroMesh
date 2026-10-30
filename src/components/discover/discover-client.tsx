@@ -269,12 +269,37 @@ function RequestDialog({ result, path, onClose, chains, defaultChain, maxBountyU
   const presets = useMemo(() => [1, 5, 10, 25, 50, 100, 200].filter((p) => p <= maxBountyUsd), [maxBountyUsd]);
   const onDictate = useCallback((t: string) => setReason((r) => (r ? `${r.trimEnd()} ${t}` : t)), []);
 
+  // Dictated text is long and easy to lose. Keep a per-request draft in the browser.
+  const draftKey = `intromesh:draft:${result.target.id}:${path.connector.id}`;
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(draftKey);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (saved) setReason(saved);
+    } catch {
+      /* storage unavailable (private mode) */
+    }
+  }, [draftKey]);
+  useEffect(() => {
+    try {
+      if (reason) localStorage.setItem(draftKey, reason);
+      else localStorage.removeItem(draftKey);
+    } catch {
+      /* storage unavailable */
+    }
+  }, [draftKey, reason]);
+
   const submit = () =>
     startSubmit(async () => {
       const r = await createIntroAction({ target: result.target.id, connectorId: path.connector.id, reason, bountyUsd: bountyOn ? amount : null, chain: bountyOn ? chain : null });
       if (!r.ok) {
         toast.error(r.error);
         return;
+      }
+      try {
+        localStorage.removeItem(draftKey);
+      } catch {
+        /* storage unavailable */
       }
       if ("orderId" in r && r.orderId) {
         toast.success("Request created — fund the bounty to send it.");
