@@ -15,6 +15,7 @@ export default async function MarketingLayout({ children }: { children: ReactNod
           <nav className="hidden items-center gap-7 text-sm text-muted md:flex">
             <Link href="/#how" className="transition hover:text-fg">How it works</Link>
             <Link href="/#bounties" className="transition hover:text-fg">Bounties</Link>
+            <Link href="/#partners" className="transition hover:text-fg">Partners</Link>
             <Link href="/#pricing" className="transition hover:text-fg">Pricing</Link>
             <Link href="/live" className="inline-flex items-center gap-1.5 transition hover:text-fg">
               <span className="relative flex h-2 w-2">

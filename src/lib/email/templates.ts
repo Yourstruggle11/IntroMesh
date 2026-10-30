@@ -1,4 +1,4 @@
-import { escapeHtml } from "@/lib/utils";
+import { absoluteUrl, escapeHtml } from "@/lib/utils";
 
 const BRAND = "#0EA5A4";
 
@@ -21,7 +21,7 @@ export function layout({ preheader, body, footer }: { preheader: string; body: s
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:28px 12px;"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e6ebf2;">
 <tr><td style="height:4px;background:linear-gradient(90deg,#2dd4bf,#22d3ee,#a78bfa);"></td></tr>
-<tr><td style="padding:22px 28px 6px;font-size:15px;font-weight:700;letter-spacing:-0.01em;">Intro<span style="color:${BRAND};">Mesh</span></td></tr>
+<tr><td style="padding:22px 28px 6px;font-size:15px;font-weight:700;letter-spacing:-0.01em;"><img src="${escapeHtml(absoluteUrl("/icon-96x96.png"))}" width="28" height="28" alt="" style="vertical-align:middle;border-radius:7px;margin-right:8px;border:0;" />Intro<span style="color:${BRAND};">Mesh</span></td></tr>
 <tr><td style="padding:8px 28px 24px;font-size:15px;color:#1e293b;">${body}</td></tr>
 </table>
 <p style="max-width:560px;margin:14px auto 0;font-size:12px;color:#64748b;line-height:1.5;">${footer ?? "Sent by IntroMesh — warm introductions through people you trust. Built at Hacker House Goa 2026."}</p>

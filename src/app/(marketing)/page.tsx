@@ -3,17 +3,27 @@ import {
   ArrowRight,
   BadgeCheck,
   Bot,
+  Briefcase,
   Coins,
+  CreditCard,
   EyeOff,
+  FileText,
   GitBranch,
   HandCoins,
+  MessageSquare,
+  Mic,
   Network,
   QrCode,
   Search,
   ShieldCheck,
   Sparkles,
+  Table,
+  Users,
   Wallet,
+  Workflow,
+  Zap,
 } from "lucide-react";
+import { LogoMark } from "@/components/brand/logo";
 import { HeroMesh } from "@/components/mesh/hero-mesh";
 import { PathViz } from "@/components/mesh/path-viz";
 import { ButtonLink } from "@/components/ui/button";
@@ -23,6 +33,16 @@ import { liveStats } from "@/lib/stats";
 import { formatUnits6 } from "@/lib/crypto/chains";
 import { PLANS, formatUsd } from "@/lib/plans";
 import { cn } from "@/lib/utils";
+
+const PARTNERS = [
+  { name: "TigerGraph", role: "Graph engine", what: "Runs the multi-hop warm-path search behind every Discover result.", icon: GitBranch, tone: "bg-brand-3/10 text-brand-3 ring-brand-3/25" },
+  { name: "AI Grants India", role: "AI", what: "OpenAI credits power profile building, search expansion and intro drafts.", icon: Bot, tone: "bg-brand/10 text-brand ring-brand/25" },
+  { name: "Wispr Flow", role: "Voice", what: "Dictate your profile and intro requests instead of typing them.", icon: Mic, tone: "bg-brand-2/10 text-brand-2 ring-brand-2/25" },
+  { name: "Cake Wallet", role: "Wallet", what: "Pay intro bounties and plans in USDC, straight from your wallet.", icon: Wallet, tone: "bg-gold/10 text-gold ring-gold/25" },
+  { name: "Dodo Payments", role: "Billing", what: "Card subscriptions, activated only by signed payment webhooks.", icon: CreditCard, tone: "bg-success/10 text-success ring-success/25" },
+  { name: "viaSocket", role: "Automations", what: "Send intros and meetings to Slack, Sheets, HubSpot and 1,000+ apps.", icon: Workflow, tone: "bg-brand-2/10 text-brand-2 ring-brand-2/25" },
+  { name: "Edge City", role: "Demo day", what: "Hosts the demo day where the top Hacker House teams pitch.", icon: Users, tone: "bg-brand-3/10 text-brand-3 ring-brand-3/25" },
+];
 
 export default function LandingPage() {
   return (
@@ -79,7 +99,7 @@ export default function LandingPage() {
           {[
             { icon: QrCode, title: "Scan to connect", body: "Meet someone? Scan their QR. Both sides consent, and your mesh grows with every handshake." },
             { icon: Search, title: "Discover warm paths", body: "Search “Solana VC” or a company. TigerGraph finds every trusted route up to 3 hops away." },
-            { icon: HandCoins, title: "Request + bounty", body: "Explain why in your own words (or dictate it), and attach a USDC bounty for the connector." },
+            { icon: HandCoins, title: "Request + bounty", body: "Explain why: type it, or just say it with Wispr Flow. Then attach a USDC bounty for the connector." },
             { icon: BadgeCheck, title: "Meet & settle", body: "The connector approves an AI-drafted intro. When both sides confirm the meeting, the bounty pays out." },
           ].map((s, i) => (
             <Card key={s.title} className="group relative p-5 transition duration-300 hover:-translate-y-1 hover:border-line-strong">
@@ -108,7 +128,7 @@ export default function LandingPage() {
             <ul className="mt-8 space-y-3 text-sm">
               {[
                 { icon: GitBranch, text: "Multi-hop graph traversal on TigerGraph, with a Postgres fallback" },
-                { icon: Bot, text: "AI path explanations, query expansion and intro drafting" },
+                { icon: Bot, text: "AI explanations, search expansion and intro drafts: OpenAI via AI Grants India, with Gemini as fallback" },
                 { icon: EyeOff, text: "Masked private contacts — names revealed only by the connector" },
               ].map((f) => (
                 <li key={f.text} className="flex items-start gap-3 text-muted">
@@ -175,6 +195,7 @@ export default function LandingPage() {
                 <Wallet className="h-3 w-3" /> Pay from Cake Wallet
               </Badge>
             </div>
+            <p className="mt-4 text-xs text-subtle">Try it risk-free: testnet mode uses free test USDC on Base Sepolia, Polygon Amoy and Arbitrum Sepolia.</p>
           </div>
           <div className="relative">
             <ol className="relative space-y-3">
@@ -198,6 +219,57 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ───────── Automations (viaSocket) ───────── */}
+      <section id="automations" className="mx-auto max-w-6xl scroll-mt-20 px-5 pt-20 sm:pt-28">
+        <div className="grid items-center gap-10 lg:grid-cols-2">
+          <div>
+            <SectionTitle
+              eyebrow="Automations · powered by viaSocket"
+              title="Your intros, wherever you already work"
+              description="Open viaSocket right inside IntroMesh and pipe your activity into Slack, Google Sheets, HubSpot, Notion and 1,000+ other apps. New request? Ping your team. Meeting confirmed? Log it in your CRM."
+            />
+            <ul className="mt-8 space-y-3 text-sm">
+              {[
+                { icon: Workflow, text: "Build flows without leaving IntroMesh: no code, no API keys to juggle" },
+                { icon: Zap, text: "Events for requests, sent intros, confirmed meetings, bounty payouts and new connections" },
+                { icon: ShieldCheck, text: "Delivered only to https webhooks you control, and checked on every send" },
+              ].map((f) => (
+                <li key={f.text} className="flex items-start gap-3 text-muted">
+                  <f.icon className="mt-0.5 h-4 w-4 shrink-0 text-brand-2" />
+                  {f.text}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <Card className="ring-gradient p-5 sm:p-6">
+            <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface/70 p-4">
+              <LogoMark size={36} />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">New intro request</p>
+                <p className="truncate text-xs text-muted">Ravi wants an intro to a seed fund partner · $10 bounty</p>
+              </div>
+            </div>
+            <div className="mx-auto my-2 h-8 w-[2px] animate-flow-y rounded-full" style={{ backgroundImage: "repeating-linear-gradient(180deg, rgba(34,211,238,0.9) 0 10px, rgba(167,139,250,0.25) 10px 24px)", backgroundSize: "100% 48px" }} />
+            <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-brand-2/30 bg-brand-2/10 px-4 py-1.5 text-sm font-medium text-brand-2">
+              <Workflow className="h-4 w-4" /> viaSocket flow
+            </div>
+            <div className="mx-auto my-2 h-8 w-[2px] animate-flow-y rounded-full" style={{ backgroundImage: "repeating-linear-gradient(180deg, rgba(34,211,238,0.9) 0 10px, rgba(167,139,250,0.25) 10px 24px)", backgroundSize: "100% 48px" }} />
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[
+                { icon: MessageSquare, label: "Slack" },
+                { icon: Table, label: "Sheets" },
+                { icon: Briefcase, label: "HubSpot" },
+                { icon: FileText, label: "Notion" },
+              ].map((a) => (
+                <div key={a.label} className="flex flex-col items-center gap-1.5 rounded-xl border border-line bg-white/[0.03] px-3 py-3 text-xs text-muted">
+                  <a.icon className="h-4 w-4 text-fg/80" /> {a.label}
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </section>
+
       {/* ───────── Consent ───────── */}
       <section className="mx-auto max-w-6xl px-5 py-20 sm:py-28">
         <SectionTitle align="center" eyebrow="Consent by design" title="Your network is not a public database" />
@@ -216,9 +288,33 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ───────── Partners ───────── */}
+      <section id="partners" className="mx-auto max-w-6xl scroll-mt-20 px-5 pb-20 sm:pb-28">
+        <SectionTitle align="center" eyebrow="Hacker House Goa 2026" title="Built with our partners" description="The partners behind IntroMesh, and the part of the product each one powers." />
+        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {PARTNERS.map((p) => (
+            <Card key={p.name} className="group relative flex flex-col p-5 transition duration-300 hover:-translate-y-1 hover:border-line-strong">
+              <div className="flex items-center justify-between">
+                <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl ring-1", p.tone)}>
+                  <p.icon className="h-5 w-5" />
+                </span>
+                <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-subtle">{p.role}</span>
+              </div>
+              <h3 className="mt-5 text-[15px] font-semibold">{p.name}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted">{p.what}</p>
+            </Card>
+          ))}
+          <Card className="flex flex-col justify-center p-5 text-center sm:col-span-2 lg:col-span-1">
+            <LogoMark size={40} className="mx-auto" />
+            <p className="mt-3 text-sm font-semibold">Made in 4 days</p>
+            <p className="mt-1 text-xs text-muted">at Bells Beach Resort, Calangute · 28 to 31 Oct 2026</p>
+          </Card>
+        </div>
+      </section>
+
       {/* ───────── Pricing ───────── */}
       <section id="pricing" className="mx-auto max-w-6xl scroll-mt-20 px-5 pb-24">
-        <SectionTitle align="center" eyebrow="Pricing" title="Free to start. Pay by card or stablecoin." description="Subscribe with a card through Dodo Payments, or prepay any plan in USDC from Cake Wallet." />
+        <SectionTitle align="center" eyebrow="Pricing" title="Free to start. Pay by card or stablecoin." description="Subscribe with a card through Dodo Payments, or prepay any plan in USDC from Cake Wallet or any EVM wallet." />
         <div className="mt-12 grid gap-4 lg:grid-cols-3">
           {Object.values(PLANS).map((p) => (
             <Card key={p.id} className={cn("relative flex flex-col p-6", p.highlight && "ring-gradient bg-brand/[0.04]")}>
