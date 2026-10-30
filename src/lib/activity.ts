@@ -1,7 +1,9 @@
 import "server-only";
 import { randomInt } from "crypto";
+import { after } from "next/server";
 import { db } from "@/db";
 import { events, notifications } from "@/db/schema";
+import { AUTOMATION_EVENTS, deliverAutomation } from "@/lib/automations";
 
 export type EventType =
   | "user.signup"
@@ -33,6 +35,15 @@ export async function notify(userId: string, n: { type: string; title: string; b
     await db.insert(notifications).values({ userId, ...n });
   } catch (err) {
     console.warn("[notify] failed", (err as Error).message);
+  }
+  // Mirror the notification to the member's automation webhook (viaSocket) after the response.
+  if (AUTOMATION_EVENTS.some((e) => e.type === n.type)) {
+    const send = () => deliverAutomation(userId, n).then(() => undefined);
+    try {
+      after(send);
+    } catch {
+      void send(); // outside a request scope (scripts)
+    }
   }
 }
 

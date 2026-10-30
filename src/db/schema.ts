@@ -39,6 +39,8 @@ export const users = pgTable(
     planSource: text("plan_source"),
     onboarded: boolean("onboarded").notNull().default(false),
     showOnLeaderboard: boolean("show_on_leaderboard").notNull().default(true),
+    /** viaSocket (or other automation) webhook that receives this member's IntroMesh events. */
+    automationWebhookUrl: text("automation_webhook_url"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

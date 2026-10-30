@@ -23,6 +23,7 @@ IntroMesh finds the warmest path to the person you want to meet, drafts the intr
 | Auth | Email + password (bcrypt). Session tokens are stored hashed, in httpOnly cookies. |
 | Graph | TigerGraph Savanna (REST++ / GSQL), with an in-memory BFS over Postgres as fallback |
 | AI | Provider chain: **AI Grants** OpenAI key (`gpt-5-nano`), then **Google Gemini**, then deterministic built-in fallbacks. Schemas are written once and converted per provider. |
+| Automations | **viaSocket Embed**: members build flows in-app (signed per-user JWT), and IntroMesh POSTs their events to the flow's webhook (SSRF-guarded) |
 | Supply chain | **Socket**: the GitHub App flags risky dependencies on PRs, and `.github/workflows/socket.yml` runs `socket ci` on every push/PR |
 | Email | Any SMTP server (e.g. Gmail + app password) through nodemailer. Every email is recorded in an outbox with its delivery status. |
 | Crypto | viem: USDC orders with a unique amount, verified by reading on-chain `Transfer` logs. Payouts and refunds come from the server wallet. |
@@ -64,6 +65,10 @@ See `.env.example`. In short:
 3. **TigerGraph**: make sure the Savanna workspace is running with **Auto Start** enabled (otherwise API calls can't wake it after auto-suspend, and the app falls back to Postgres). Then open `/admin` and click **Set up TigerGraph**. This creates the schema, installs `warm_paths`, and syncs. Or run `npm run graph:setup` then `npm run graph:sync`.
 4. **Dodo**: set `DODO_API_KEY`, run `npm run dodo:setup` (creates the Pro and Team products), and add the product IDs to Vercel. Then in the Dodo dashboard add the webhook `https://<app>/api/webhooks/dodo` and copy its secret into `DODO_WEBHOOK_SECRET`.
 5. **Wallet**: send a little gas to the address printed by `npm run wallet:new`. On testnet that's free Base Sepolia ETH from a faucet; on mainnet, ~$1 of ETH on Base covers 100+ payouts.
+
+## viaSocket (automations)
+
+Set `VIASOCKET_ORG_ID`, `VIASOCKET_PROJECT_ID` and `VIASOCKET_EMBED_SECRET`. In **Settings → Automations**, each member opens the viaSocket builder in-app, creates a flow with a **Webhook** trigger, pastes the URL, and sends a test event. After that, every intro request, sent intro, confirmed meeting, bounty payout and new connection is delivered to their flow as JSON. In the viaSocket dashboard, set the embed display type to **side slider** or **pop-up** and enable **webhooks** in the embed.
 
 ## Socket (supply-chain security)
 
