@@ -29,6 +29,18 @@ IntroMesh finds the warmest path to the person you want to meet, drafts the intr
 | Crypto | viem: USDC orders with a unique amount, verified by reading on-chain `Transfer` logs. Payouts and refunds come from the server wallet. |
 | Billing | Dodo Payments subscriptions (signed Standard Webhooks), or a 30-day plan prepaid in USDC |
 
+## Business model
+
+Revenue comes from subscriptions only. Bounties pass through untouched: the connector receives 100% of the USDC, and IntroMesh pays the network gas for every payout and refund from its own wallet.
+
+| Plan | Price | Intro requests / month | Private contacts | Max bounty per intro |
+| --- | --- | --- | --- | --- |
+| Free | $0 | 5 | 50 | $5 |
+| Pro | $9 / month | 50 | 500 | $50 |
+| Team | $29 / month | Unlimited | 2,000 | $200 |
+
+Pro and Team are billed monthly by card (Dodo Payments) or prepaid for 30 days in USDC. Limits are defined in `src/lib/plans.ts`.
+
 ## Local development
 
 ```bash
